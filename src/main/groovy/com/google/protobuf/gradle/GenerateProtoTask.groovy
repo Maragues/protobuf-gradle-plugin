@@ -29,6 +29,8 @@
  */
 package com.google.protobuf.gradle
 
+import org.gradle.api.provider.SetProperty
+
 import static java.nio.charset.StandardCharsets.US_ASCII
 
 import com.google.common.base.Preconditions
@@ -64,6 +66,7 @@ import org.gradle.api.tasks.SkipWhenEmpty
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.TaskAction
 import org.gradle.util.ConfigureUtil
+import java.lang.String
 
 import javax.annotation.Nullable
 import javax.inject.Inject
@@ -90,6 +93,7 @@ public abstract class GenerateProtoTask extends DefaultTask {
   private final ConfigurableFileCollection sourceFiles = objectFactory.fileCollection()
   // descriptor files are proto files that will be passed to protoc as --descriptor_set_in
   private final ConfigurableFileCollection descriptorSetFiles = objectFactory.fileCollection()
+  private final SetProperty<String> filesInDescriptorSet = objectFactory.setProperty(String.class)
   private final NamedDomainObjectContainer<PluginOptions> builtins = objectFactory.domainObjectContainer(PluginOptions)
   private final NamedDomainObjectContainer<PluginOptions> plugins = objectFactory.domainObjectContainer(PluginOptions)
   private final ProjectLayout projectLayout = project.layout
@@ -320,6 +324,11 @@ public abstract class GenerateProtoTask extends DefaultTask {
     return descriptorSetFiles
   }
 
+  @Input
+  SetProperty<String> getFilesInDescriptorSet() {
+    return filesInDescriptorSet
+  }
+
   @InputFiles
   @PathSensitive(PathSensitivity.RELATIVE)
   FileCollection getIncludeDirs() {
@@ -532,6 +541,14 @@ public abstract class GenerateProtoTask extends DefaultTask {
   }
 
   /**
+   * Add a collection of proto source files to be compiled.
+   */
+  public void addFileInDescriptorSet(String file) {
+    checkCanConfig()
+    filesInDescriptorSet.add(file)
+  }
+
+  /**
    * Returns true if the Java source set or Android variant is test related.
    */
   @Input
@@ -710,6 +727,13 @@ public abstract class GenerateProtoTask extends DefaultTask {
       }
 
       baseCmd += descriptorSetInBuilder
+
+      Set<String> fileNamesInDescriptorSet = filesInDescriptorSet.get()
+      if(!fileNamesInDescriptorSet.isEmpty()){
+          for(String fileName : fileNamesInDescriptorSet){
+            protoFiles.add(new File(fileName))
+          }
+      }
     }
 
     List<List<String>> cmds = generateCmds(baseCmd, protoFiles, getCmdLengthLimit())
